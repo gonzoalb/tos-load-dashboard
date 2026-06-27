@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import yaml
 from datetime import datetime, timedelta
-import hashlib
 
 # ============================================================
 # TOS LOAD VISIBILITY DASHBOARD
@@ -17,81 +16,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CONFIGURATION ---
-SITE_GROUPS = {
-    "RARC": ["RARC"],
-    "RIMG": ["RIMG"],
-    "RITO": ["RITO"],
-    "RIVA": ["RIVA"],
-    "RTPX": ["RTPX"],
-    "RRPR": ["RRPR"],
-    "RPNV_RPNC": ["RPNV", "RPNC"],
-    "RNRM_LNRM": ["RNRM", "LNRM"],
-}
-
-# --- USER DATABASE (stored in secrets or yaml) ---
+# --- USER DATABASE ---
 def load_users():
     """Load user credentials and site assignments."""
     try:
         with open("users.yaml", "r") as f:
             return yaml.safe_load(f)
     except FileNotFoundError:
-        # Default users if no file exists
         return {
-            "admin": {
-                "password": "admin2026",
-                "role": "admin",
-                "sites": ["ALL"],
-                "name": "Albert Gonzalez"
-            },
-            "rtpx_user": {
-                "password": "rtpx2026",
-                "role": "site",
-                "sites": ["RTPX"],
-                "name": "RTPX Operations"
-            },
-            "rpnv_rpnc_user": {
-                "password": "rpnv2026",
-                "role": "site",
-                "sites": ["RPNV", "RPNC"],
-                "name": "RPNV/RPNC Operations"
-            },
-            "rnrm_lnrm_user": {
-                "password": "rnrm2026",
-                "role": "site",
-                "sites": ["RNRM", "LNRM"],
-                "name": "RNRM/LNRM Operations"
-            },
-            "rarc_user": {
-                "password": "rarc2026",
-                "role": "site",
-                "sites": ["RARC"],
-                "name": "RARC Operations"
-            },
-            "rimg_user": {
-                "password": "rimg2026",
-                "role": "site",
-                "sites": ["RIMG"],
-                "name": "RIMG Operations"
-            },
-            "rito_user": {
-                "password": "rito2026",
-                "role": "site",
-                "sites": ["RITO"],
-                "name": "RITO Operations"
-            },
-            "riva_user": {
-                "password": "riva2026",
-                "role": "site",
-                "sites": ["RIVA"],
-                "name": "RIVA Operations"
-            },
-            "rrpr_user": {
-                "password": "rrpr2026",
-                "role": "site",
-                "sites": ["RRPR"],
-                "name": "RRPR Operations"
-            },
+            "admin": {"password": "TOS_Admin_2026!", "role": "admin", "sites": ["ALL"], "name": "Albert Gonzalez"},
         }
 
 
@@ -100,11 +33,11 @@ def authenticate(username, password):
     users = load_users()
     if username in users and users[username]["password"] == password:
         return users[username]
+    return None
 
 
 def derive_status(row):
     """Derive load status from available data."""
-    # Handle both boolean and string representations of Canceled Load
     canceled = row["Canceled Load"]
     if canceled is True or str(canceled).strip().lower() == 'true':
         return "🔴 Cancelled"
@@ -117,6 +50,8 @@ def derive_status(row):
     else:
         return "⚪ Planned"
 
+
+def load_data():
     """Load and transform FMC CSV data."""
     try:
         df = pd.read_csv("data/fmc_export.csv", low_memory=False)
@@ -160,13 +95,13 @@ def derive_status(row):
     # Build scheduled arrival strings
     if "Scheduled Date (Origin)" in df_clean.columns and "Scheduled Time (Origin)" in df_clean.columns:
         df_clean["Scheduled Origin Arrival"] = (
-            df_clean["Scheduled Date (Origin)"].fillna("") + " " + 
+            df_clean["Scheduled Date (Origin)"].fillna("") + " " +
             df_clean["Scheduled Time (Origin)"].fillna("")
         ).str.strip()
 
     if "Scheduled Date (Dest)" in df_clean.columns and "Scheduled Time (Dest)" in df_clean.columns:
         df_clean["Scheduled Dest Arrival"] = (
-            df_clean["Scheduled Date (Dest)"].fillna("") + " " + 
+            df_clean["Scheduled Date (Dest)"].fillna("") + " " +
             df_clean["Scheduled Time (Dest)"].fillna("")
         ).str.strip()
 
@@ -177,7 +112,6 @@ def filter_by_sites(df, sites):
     """Filter dataframe to only show loads for specified sites."""
     if "ALL" in sites:
         return df
-
     mask = pd.Series([False] * len(df))
     for site in sites:
         mask = mask | df["Lane"].str.contains(site, na=False)
@@ -253,22 +187,9 @@ def show_dashboard():
 
     # Sidebar filters
     with st.sidebar:
-        # Status filter
         statuses = df_filtered["Status"].unique().tolist()
         selected_statuses = st.multiselect("Status", statuses, default=statuses)
-
-        # Direction filter (inbound/outbound)
         direction = st.radio("Direction", ["All", "Inbound", "Outbound"])
-
-        # Date filter - only if we have scheduled dates
-        if "Scheduled Date (Origin)" in df_filtered.columns:
-            date_options = sorted(df_filtered["Scheduled Date (Origin)"].dropna().unique())
-            if date_options:
-                date_filter = st.select_slider(
-                    "Date Range",
-                    options=["All"] + list(date_options),
-                    value="All"
-                )
 
     # Apply filters
     df_display = df_filtered[df_filtered["Status"].isin(selected_statuses)]
@@ -307,12 +228,10 @@ def show_dashboard():
 
     # --- DATA TABLE ---
     display_cols = [
-        "VRID", "Lane", "Status", "Scheduled Origin Arrival", 
+        "VRID", "Lane", "Status", "Scheduled Origin Arrival",
         "Scheduled Dest Arrival", "Origin Arrival", "Origin Departure",
         "Destination Arrival", "Trailer ID", "Carrier Code"
     ]
-
-    # Only show columns that exist
     display_cols = [c for c in display_cols if c in df_display.columns]
 
     st.dataframe(
@@ -331,7 +250,7 @@ def show_dashboard():
         }
     )
 
-    # --- ADMIN: Site filter override ---
+    # --- ADMIN PANEL ---
     if user["role"] == "admin":
         st.divider()
         st.markdown("### 🔧 Admin Panel")
@@ -361,7 +280,6 @@ def show_dashboard():
                     "Sites": ", ".join(udata.get("sites", [])),
                 })
             st.dataframe(pd.DataFrame(user_list), use_container_width=True, hide_index=True)
-
             st.info("💡 To add/remove users, edit the `users.yaml` file in the app directory.")
 
 
