@@ -1,0 +1,61 @@
+# TOS Dashboard - User Access Configuration
+# Managed by: gonzoalb@amazon.com
+# 
+# To add a new user: Copy a user block and modify
+# To revoke access: Delete or comment out the user block
+# Sites: RARC, RIMG, RITO, RIVA, RNRM, LNRM, RPNC, RPNV, RTPX, RRPR
+# Co-located pairs share visibility: RPNV+RPNC, RNRM+LNRM
+
+admin:
+  password: "TOS_Admin_2026!"
+  role: admin
+  sites: ["ALL"]
+  name: "Albert Gonzalez"
+
+rtpx_user:
+  password: "RTPX_View_2026"
+  role: site
+  sites: ["RTPX"]
+  name: "RTPX Operations"
+
+rpnv_rpnc_user:
+  password: "RPNV_View_2026"
+  role: site
+  sites: ["RPNV", "RPNC"]
+  name: "RPNV/RPNC Operations"
+
+rnrm_lnrm_user:
+  password: "RNRM_View_2026"
+  role: site
+  sites: ["RNRM", "LNRM"]
+  name: "RNRM/LNRM Operations"
+
+rarc_user:
+  password: "RARC_View_2026"
+  role: site
+  sites: ["RARC"]
+  name: "RARC Operations"
+
+rimg_user:
+  password: "RIMG_View_2026"
+  role: site
+  sites: ["RIMG"]
+  name: "RIMG Operations"
+
+rito_user:
+  password: "RITO_View_2026"
+  role: site
+  sites: ["RITO"]
+  name: "RITO Operations"
+
+riva_user:
+  password: "RIVA_View_2026"
+  role: site
+  sites: ["RIVA"]
+  name: "RIVA Operations"
+
+rrpr_user:
+  password: "RRPR_View_2026"
+  role: site
+  sites: ["RRPR"]
+  name: "RRPR Operations"
