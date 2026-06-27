@@ -1,5 +1,4 @@
-# Ignore data files too large for repo 
-data/fmc_export.csv 
+# Ignore 
 __pycache__/ 
 *.pyc 
 .env
