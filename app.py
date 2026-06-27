@@ -100,24 +100,23 @@ def authenticate(username, password):
     users = load_users()
     if username in users and users[username]["password"] == password:
         return users[username]
-    return None
 
 
 def derive_status(row):
     """Derive load status from available data."""
-    if row["Canceled Load"] == True:
+    # Handle both boolean and string representations of Canceled Load
+    canceled = row["Canceled Load"]
+    if canceled is True or str(canceled).strip().lower() == 'true':
         return "🔴 Cancelled"
-    elif pd.notna(row.get("Last Dock Arrival")):
+    elif pd.notna(row.get("Destination Arrival")) and str(row.get("Destination Arrival")).strip() != '':
         return "✅ Completed"
-    elif pd.notna(row.get("First Dock Departure")):
+    elif pd.notna(row.get("Origin Departure")) and str(row.get("Origin Departure")).strip() != '':
         return "🟡 In Transit"
-    elif pd.notna(row.get("First Dock Arrival")):
+    elif pd.notna(row.get("Origin Arrival")) and str(row.get("Origin Arrival")).strip() != '':
         return "🔵 At Origin"
     else:
         return "⚪ Planned"
 
-
-def load_data():
     """Load and transform FMC CSV data."""
     try:
         df = pd.read_csv("data/fmc_export.csv", low_memory=False)
