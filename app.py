@@ -65,12 +65,20 @@ st.markdown("""
     [data-testid="stSidebar"] .stMarkdown h3 {
         color: #232F3E;
     }
-
     /* Data table */
     [data-testid="stDataFrame"] {
         border-radius: 10px;
         overflow: hidden;
         border: 1px solid #E9ECEF;
+    }
+    [data-testid="stDataFrame"] [data-testid="glideDataEditor"] th,
+    [data-testid="stDataFrame"] [role="columnheader"] {
+        font-weight: 700 !important;
+        color: #232F3E !important;
+        text-transform: uppercase;
+        font-size: 0.75rem !important;
+        letter-spacing: 0.3px;
+    }
     }
 
     /* Tabs */
