@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yaml
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # ============================================================
 # TOS LOAD VISIBILITY DASHBOARD
@@ -15,6 +15,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 
 # --- USER DATABASE ---
 def load_users():
@@ -38,74 +39,70 @@ def authenticate(username, password):
 
 def derive_status(row):
     """Derive load status from available data."""
-    canceled = row["Canceled Load"]
+    canceled = row.get("Canceled Load", False)
     if canceled is True or str(canceled).strip().lower() == 'true':
         return "🔴 Cancelled"
-    elif pd.notna(row.get("Destination Arrival")) and str(row.get("Destination Arrival")).strip() != '':
+    elif pd.notna(row.get("Actual Dest Arrival")) and str(row.get("Actual Dest Arrival")).strip() != '':
         return "✅ Completed"
-    elif pd.notna(row.get("Origin Departure")) and str(row.get("Origin Departure")).strip() != '':
-        return "🟡 In Transit"
-    elif pd.notna(row.get("Origin Arrival")) and str(row.get("Origin Arrival")).strip() != '':
-        return "🔵 At Origin"
+    elif pd.notna(row.get("Origin Scheduled Depart")) and str(row.get("Origin Scheduled Depart")).strip() != '':
+        # Check if departure time has passed
+        try:
+            depart_time = pd.to_datetime(row.get("Origin Scheduled Depart"))
+            if depart_time < pd.Timestamp.now():
+                return "🟡 In Transit"
+            else:
+                return "⚪ Scheduled"
+        except:
+            return "⚪ Scheduled"
     else:
         return "⚪ Planned"
 
 
 def load_data():
-    """Load and transform FMC CSV data."""
+    """Load and transform data from CSV export."""
     try:
         df = pd.read_csv("data/fmc_export.csv", low_memory=False)
     except FileNotFoundError:
-        st.error("❌ No data file found. Please upload FMC CSV export to data/fmc_export.csv")
+        st.error("❌ No data file found. Please upload CSV export to data/fmc_export.csv")
         return pd.DataFrame()
 
-    # Select and rename key columns
-    cols_map = {
+    # Normalize column names (Hubble exports as lowercase)
+    df.columns = [col.strip().title() for col in df.columns]
+
+    # Rename to dashboard-friendly names
+    col_map = {
         "Load #": "VRID",
+        "Carrier": "Carrier",
+        "Subcarrier": "Subcarrier",
         "Lane": "Lane",
-        "Canceled Load": "Canceled Load",
-        "Carrier": "Carrier Code",
+        "Shipper Accounts": "Shipper Accounts",
+        "Origin Scheduled Depart": "Origin Scheduled Depart",
+        "Dest Scheduled Arrival": "Dest Scheduled Arrival",
+        "Actual Dest Arrival": "Actual Dest Arrival",
         "Trailer Id": "Trailer ID",
+        "Canceled Load": "Canceled Load",
+        "Trailer Ready Time": "Trailer Ready Time",
+        # Support old FMC format too
         "First Dock Arrival": "Origin Arrival",
         "First Dock Departure": "Origin Departure",
-        "Last Dock Arrival": "Destination Arrival",
-        "Scheduled Truck Arrival - 1 date": "Scheduled Date (Origin)",
-        "Scheduled Truck Arrival - 1 time": "Scheduled Time (Origin)",
-        "Scheduled Truck Arrival - 2 date": "Scheduled Date (Dest)",
-        "Scheduled Truck Arrival - 2 time": "Scheduled Time (Dest)",
-        "Corresponding CPT": "CPT",
-        "Equipment Type": "Equipment",
-        "Total Distance": "Distance",
+        "Last Dock Arrival": "Actual Dest Arrival",
     }
 
-    available_cols = {k: v for k, v in cols_map.items() if k in df.columns}
-    df_clean = df[list(available_cols.keys())].rename(columns=available_cols)
+    rename_cols = {k: v for k, v in col_map.items() if k in df.columns}
+    df = df.rename(columns=rename_cols)
 
     # Derive status
-    df_clean["Status"] = df_clean.apply(derive_status, axis=1)
+    df["Status"] = df.apply(derive_status, axis=1)
 
     # Parse origin and destination from Lane
-    df_clean["Origin"] = df_clean["Lane"].apply(
-        lambda x: x.split("->")[0] if pd.notna(x) and "->" in str(x) else ""
+    df["Origin"] = df["Lane"].apply(
+        lambda x: str(x).split("->")[0] if pd.notna(x) and "->" in str(x) else ""
     )
-    df_clean["Destination"] = df_clean["Lane"].apply(
-        lambda x: x.split("->")[-1] if pd.notna(x) and "->" in str(x) else ""
+    df["Destination"] = df["Lane"].apply(
+        lambda x: str(x).split("->")[-1] if pd.notna(x) and "->" in str(x) else ""
     )
 
-    # Build scheduled arrival strings
-    if "Scheduled Date (Origin)" in df_clean.columns and "Scheduled Time (Origin)" in df_clean.columns:
-        df_clean["Scheduled Origin Arrival"] = (
-            df_clean["Scheduled Date (Origin)"].fillna("") + " " +
-            df_clean["Scheduled Time (Origin)"].fillna("")
-        ).str.strip()
-
-    if "Scheduled Date (Dest)" in df_clean.columns and "Scheduled Time (Dest)" in df_clean.columns:
-        df_clean["Scheduled Dest Arrival"] = (
-            df_clean["Scheduled Date (Dest)"].fillna("") + " " +
-            df_clean["Scheduled Time (Dest)"].fillna("")
-        ).str.strip()
-
-    return df_clean
+    return df
 
 
 def filter_by_sites(df, sites):
@@ -187,7 +184,7 @@ def show_dashboard():
 
     # Sidebar filters
     with st.sidebar:
-        statuses = df_filtered["Status"].unique().tolist()
+        statuses = sorted(df_filtered["Status"].unique().tolist())
         selected_statuses = st.multiselect("Status", statuses, default=statuses)
         direction = st.radio("Direction", ["All", "Inbound", "Outbound"])
 
@@ -207,7 +204,7 @@ def show_dashboard():
 
     # --- HEADER ---
     st.markdown("# 🚛 TOS Load Visibility Dashboard")
-    st.markdown("Real-time load tracking for TransfersOutsideServices repair sites")
+    st.markdown("Load tracking for TransfersOutsideServices repair sites")
 
     # --- METRICS ---
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -215,28 +212,28 @@ def show_dashboard():
     total = len(df_display)
     completed = len(df_display[df_display["Status"] == "✅ Completed"])
     in_transit = len(df_display[df_display["Status"] == "🟡 In Transit"])
-    planned = len(df_display[df_display["Status"] == "⚪ Planned"])
+    scheduled = len(df_display[df_display["Status"] == "⚪ Scheduled"])
     cancelled = len(df_display[df_display["Status"] == "🔴 Cancelled"])
 
     col1.metric("Total Loads", total)
     col2.metric("Completed", completed)
     col3.metric("In Transit", in_transit)
-    col4.metric("Planned", planned)
+    col4.metric("Scheduled", scheduled)
     col5.metric("Cancelled", cancelled)
 
     st.divider()
 
     # --- DATA TABLE ---
     display_cols = [
-        "VRID", "Lane", "Status", "Scheduled Origin Arrival",
-        "Scheduled Dest Arrival", "Origin Arrival", "Origin Departure",
-        "Destination Arrival", "Trailer ID", "Carrier Code"
+        "VRID", "Lane", "Status", "Origin Scheduled Depart",
+        "Dest Scheduled Arrival", "Actual Dest Arrival",
+        "Trailer ID", "Carrier"
     ]
     display_cols = [c for c in display_cols if c in df_display.columns]
 
     st.dataframe(
         df_display[display_cols].sort_values(
-            by="Scheduled Origin Arrival" if "Scheduled Origin Arrival" in display_cols else "VRID",
+            by="Origin Scheduled Depart" if "Origin Scheduled Depart" in display_cols else "VRID",
             ascending=False
         ),
         use_container_width=True,
@@ -245,8 +242,11 @@ def show_dashboard():
             "VRID": st.column_config.TextColumn("VRID", width="small"),
             "Lane": st.column_config.TextColumn("Lane", width="medium"),
             "Status": st.column_config.TextColumn("Status", width="small"),
+            "Origin Scheduled Depart": st.column_config.TextColumn("Origin Depart", width="medium"),
+            "Dest Scheduled Arrival": st.column_config.TextColumn("Dest ETA", width="medium"),
+            "Actual Dest Arrival": st.column_config.TextColumn("Actual Arrival", width="medium"),
             "Trailer ID": st.column_config.TextColumn("Trailer ID", width="medium"),
-            "Carrier Code": st.column_config.TextColumn("Carrier", width="small"),
+            "Carrier": st.column_config.TextColumn("Carrier", width="small"),
         }
     )
 
@@ -255,7 +255,7 @@ def show_dashboard():
         st.divider()
         st.markdown("### 🔧 Admin Panel")
 
-        tab1, tab2 = st.tabs(["📊 Site Overview", "👥 User Management"])
+        tab1, tab2, tab3 = st.tabs(["📊 Site Overview", "👥 User Management", "📤 Upload Data"])
 
         with tab1:
             st.markdown("**Load counts by site:**")
@@ -280,7 +280,25 @@ def show_dashboard():
                     "Sites": ", ".join(udata.get("sites", [])),
                 })
             st.dataframe(pd.DataFrame(user_list), use_container_width=True, hide_index=True)
-            st.info("💡 To add/remove users, edit the `users.yaml` file in the app directory.")
+            st.info("💡 To add/remove users, edit the `users.yaml` file in the repo.")
+
+        with tab3:
+            st.markdown("**Upload fresh data export:**")
+            st.markdown("Run your saved query in Hubble Workbench, download CSV, and upload here.")
+            uploaded_file = st.file_uploader("Drop CSV here", type=["csv"])
+            if uploaded_file is not None:
+                try:
+                    test_df = pd.read_csv(uploaded_file)
+                    if len(test_df) > 0:
+                        # Save to data directory
+                        uploaded_file.seek(0)
+                        with open("data/fmc_export.csv", "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        st.success(f"✅ Uploaded! {len(test_df)} loads. Refresh the page to see updated data.")
+                    else:
+                        st.error("File appears empty.")
+                except Exception as e:
+                    st.error(f"Error reading file: {e}")
 
 
 # --- MAIN APP FLOW ---
