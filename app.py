@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import yaml
+import json
+import os
 from datetime import datetime
 
 # ============================================================
@@ -52,6 +54,23 @@ st.markdown("""
     header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
+
+# --- TIMESTAMP TRACKING ---
+def get_last_refreshed():
+    """Read last refresh timestamp."""
+    try:
+        with open("data/last_refreshed.json", "r") as f:
+            return json.load(f).get("timestamp", "Unknown")
+    except:
+        return "Unknown"
+
+
+def set_last_refreshed():
+    """Save current time as last refresh."""
+    os.makedirs("data", exist_ok=True)
+    with open("data/last_refreshed.json", "w") as f:
+        json.dump({"timestamp": datetime.now().strftime("%b %d, %Y at %I:%M %p")}, f)
 
 
 # --- USER DATABASE ---
@@ -108,18 +127,14 @@ def load_data():
     df.columns = [col.strip().title() for col in df.columns]
 
     col_map = {
-        "Load #": "VRID",
-        "Carrier": "Carrier",
-        "Subcarrier": "Subcarrier",
-        "Lane": "Lane",
-        "Shipper Accounts": "Shipper Accounts",
+        "Load #": "VRID", "Carrier": "Carrier", "Subcarrier": "Subcarrier",
+        "Lane": "Lane", "Shipper Accounts": "Shipper Accounts",
         "Origin Scheduled Depart": "Origin Scheduled Depart",
         "Origin Actual Arrival": "Origin Actual Arrival",
         "Dest Scheduled Arrival": "Dest Scheduled Arrival",
         "Dest Actual Arrival": "Dest Actual Arrival",
         "Dest Finish Unload": "Dest Finish Unload",
-        "Trailer Id": "Trailer ID",
-        "Canceled Load": "Canceled Load",
+        "Trailer Id": "Trailer ID", "Canceled Load": "Canceled Load",
         "Trailer Ready Time": "Trailer Ready Time",
         "Origin Late Hours": "Origin Late Hours",
         "Equipment Type": "Equipment Type",
@@ -130,7 +145,6 @@ def load_data():
     df["Status"] = df.apply(derive_status, axis=1)
     df["Origin"] = df["Lane"].apply(lambda x: str(x).split("->")[0] if pd.notna(x) and "->" in str(x) else "")
     df["Destination"] = df["Lane"].apply(lambda x: str(x).split("->")[-1] if pd.notna(x) and "->" in str(x) else "")
-
     return df
 
 
@@ -144,18 +158,15 @@ def filter_by_sites(df, sites):
 
 
 def fmt_time(val):
-    """Format a timestamp for display."""
     if pd.isna(val) or str(val).strip() == '':
         return "—"
     try:
-        dt = pd.to_datetime(val)
-        return dt.strftime("%m/%d %H:%M")
+        return pd.to_datetime(val).strftime("%m/%d %H:%M")
     except:
         return str(val)[:16]
 
 
 def render_timeline_native(row):
-    """Render a timeline card using native Streamlit components."""
     origin = row.get("Origin", "?")
     destination = row.get("Destination", "?")
     status = row.get("Status", "")
@@ -171,7 +182,6 @@ def render_timeline_native(row):
     dest_finish = row.get("Dest Finish Unload", "")
     late_hrs = row.get("Origin Late Hours", "")
 
-    # Progress indicator
     if "Completed" in status:
         progress = "🟢━━━━━━━━━━━🟢━━━━━━━━━━━🟢"
     elif "Transit" in status:
@@ -183,10 +193,8 @@ def render_timeline_native(row):
     else:
         progress = "🟡─ ─ ─ ─ ─ ─⚪─ ─ ─ ─ ─ ─⚪"
 
-    # Equipment short name
     equip_short = str(equipment).replace("FIFTY_THREE_FOOT_", "53' ").replace("_", " ").title() if pd.notna(equipment) and str(equipment).strip() else "—"
 
-    # Late badge
     late_text = ""
     if pd.notna(late_hrs) and str(late_hrs).strip() != '':
         try:
@@ -197,21 +205,16 @@ def render_timeline_native(row):
             pass
 
     with st.container():
-        st.markdown(f"""---""")
-
-        # Header row
+        st.markdown("---")
         col_h1, col_h2 = st.columns([3, 1])
         with col_h1:
             st.markdown(f"**{vrid}** — `{lane}`")
         with col_h2:
             st.markdown(f"**{status}**")
 
-        # Progress bar
         st.code(f"  {origin:<12}            🚛              {destination:>12}\n  {progress}", language=None)
 
-        # Details row
         col1, col2, col3 = st.columns(3)
-
         with col1:
             st.markdown(f"**📍 Origin: {origin}**")
             st.caption(f"Scheduled: {fmt_time(origin_sched)}")
@@ -219,14 +222,12 @@ def render_timeline_native(row):
                 st.caption(f"Actual: {fmt_time(origin_actual)}")
             if late_text:
                 st.caption(late_text)
-
         with col2:
-            st.markdown(f"**🚛 En Route**")
+            st.markdown("**🚛 En Route**")
             st.caption(f"Carrier: {carrier}")
             if pd.notna(trailer) and str(trailer).strip():
                 st.caption(f"Trailer: {trailer}")
             st.caption(f"Equipment: {equip_short}")
-
         with col3:
             st.markdown(f"**📍 Destination: {destination}**")
             st.caption(f"ETA: {fmt_time(dest_sched)}")
@@ -276,7 +277,6 @@ def show_dashboard():
     user = st.session_state["user"]
     sites = user["sites"]
 
-    # Sidebar
     with st.sidebar:
         st.markdown(f"### 👤 {user['name']}")
         st.markdown(f"**Role:** {'Administrator' if user['role'] == 'admin' else 'Site Viewer'}")
@@ -291,30 +291,23 @@ def show_dashboard():
         st.divider()
         st.markdown("#### 🔍 Filters")
 
-    # Load data
     df = load_data()
     if df.empty:
         return
 
     df_filtered = filter_by_sites(df, sites)
 
-    # Sidebar filters
     with st.sidebar:
         statuses = sorted(df_filtered["Status"].unique().tolist())
         selected_statuses = st.multiselect("Status", statuses, default=statuses)
         st.markdown("")
         direction = st.radio("Direction", ["All", "Inbound", "Outbound"], horizontal=True)
         st.divider()
-        try:
-            import os
-            mod_time = os.path.getmtime("data/fmc_export.csv")
-            last_updated = datetime.fromtimestamp(mod_time).strftime("%b %d, %Y at %I:%M %p")
-            st.markdown(f"📅 **Last Updated**")
-            st.caption(f"{last_updated}")
-        except:
-            pass
+        # Last refreshed - prominent
+        last_refresh = get_last_refreshed()
+        st.markdown("📅 **Data Last Refreshed**")
+        st.info(f"🕐 {last_refresh}")
 
-    # Apply filters
     df_display = df_filtered[df_filtered["Status"].isin(selected_statuses)]
 
     if direction == "Inbound" and "ALL" not in sites:
@@ -329,10 +322,11 @@ def show_dashboard():
         df_display = df_display[mask]
 
     # --- HEADER ---
-    st.markdown("""
+    last_refresh = get_last_refreshed()
+    st.markdown(f"""
     <div class="main-header">
         <h1>🚛 TOS Load Visibility</h1>
-        <p>Real-time load tracking for TransfersOutsideServices repair sites — 14-day rolling window</p>
+        <p>Real-time load tracking for TransfersOutsideServices repair sites — 14-day rolling window &nbsp;|&nbsp; Last refreshed: {last_refresh}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -381,8 +375,7 @@ def show_dashboard():
                 by="Origin Scheduled Depart" if "Origin Scheduled Depart" in display_cols else "VRID",
                 ascending=False
             ),
-            use_container_width=True,
-            height=500,
+            use_container_width=True, height=500,
             column_config={
                 "VRID": st.column_config.TextColumn("VRID", width="small"),
                 "Lane": st.column_config.TextColumn("Lane", width="medium"),
@@ -398,16 +391,13 @@ def show_dashboard():
         )
 
     with view_tab2:
-        # Sort: In Transit first, then Scheduled, then Completed
         status_order = {"🟡 In Transit": 0, "🔵 At Origin": 1, "⚪ Scheduled": 2, "✅ Completed": 3, "🔴 Cancelled": 4, "⚪ Planned": 5}
         df_sorted = df_display.copy()
         df_sorted["_sort"] = df_sorted["Status"].map(status_order).fillna(5)
         df_sorted = df_sorted.sort_values(["_sort", "Origin Scheduled Depart"], ascending=[True, True])
 
-        # Pagination
         loads_per_page = 10
         total_pages = max(1, (len(df_sorted) + loads_per_page - 1) // loads_per_page)
-
         if len(df_sorted) > loads_per_page:
             page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, step=1, key="timeline_page")
             st.caption(f"Showing {(page-1)*loads_per_page + 1}–{min(page*loads_per_page, len(df_sorted))} of {len(df_sorted)} loads")
@@ -415,7 +405,6 @@ def show_dashboard():
             page = 1
 
         page_data = df_sorted.iloc[(page-1)*loads_per_page : page*loads_per_page]
-
         for _, row in page_data.iterrows():
             render_timeline_native(row)
 
@@ -424,7 +413,6 @@ def show_dashboard():
         st.markdown("")
         st.markdown("---")
         st.markdown("### 🔧 Admin Panel")
-
         tab1, tab2, tab3 = st.tabs(["📊 Site Overview", "👥 Users", "📤 Upload Data"])
 
         with tab1:
@@ -432,35 +420,19 @@ def show_dashboard():
             with col_a:
                 st.markdown("**Loads by Site**")
                 site_counts = {}
-                all_sites = ['RPNC', 'RTPX', 'RPNV', 'RNRM', 'LNRM', 'RIMG', 'RARC', 'RRPR', 'RITO', 'RIVA']
-                for site in all_sites:
+                for site in ['RPNC', 'RTPX', 'RPNV', 'RNRM', 'LNRM', 'RIMG', 'RARC', 'RRPR', 'RITO', 'RIVA']:
                     site_counts[site] = df["Lane"].str.contains(site, na=False).sum()
                 site_df = pd.DataFrame(list(site_counts.items()), columns=["Site", "Loads"])
-                site_df = site_df.sort_values("Loads", ascending=False)
-                st.dataframe(site_df, use_container_width=True, hide_index=True, height=400)
+                st.dataframe(site_df.sort_values("Loads", ascending=False), use_container_width=True, hide_index=True)
             with col_b:
                 st.markdown("**Status Breakdown**")
                 status_counts = df_filtered["Status"].value_counts().reset_index()
                 status_counts.columns = ["Status", "Count"]
                 st.dataframe(status_counts, use_container_width=True, hide_index=True)
-                st.markdown("")
-                st.markdown("**Data Window**")
-                if "Origin Scheduled Depart" in df.columns:
-                    dates = pd.to_datetime(df["Origin Scheduled Depart"], errors='coerce')
-                    st.caption(f"Earliest: {dates.min().strftime('%b %d, %Y') if pd.notna(dates.min()) else 'N/A'}")
-                    st.caption(f"Latest: {dates.max().strftime('%b %d, %Y') if pd.notna(dates.max()) else 'N/A'}")
-                    st.caption(f"Total records: {len(df):,}")
 
         with tab2:
             users = load_users()
-            user_list = []
-            for uname, udata in users.items():
-                user_list.append({
-                    "Username": uname,
-                    "Name": udata.get("name", ""),
-                    "Role": udata.get("role", "").title(),
-                    "Sites": ", ".join(udata.get("sites", [])),
-                })
+            user_list = [{"Username": u, "Name": d.get("name",""), "Role": d.get("role","").title(), "Sites": ", ".join(d.get("sites",[]))} for u, d in users.items()]
             st.dataframe(pd.DataFrame(user_list), use_container_width=True, hide_index=True)
             st.info("💡 Edit `users.yaml` in the GitHub repo to add/remove users.")
 
@@ -471,7 +443,6 @@ def show_dashboard():
             2. Click **Run** → **Download Results**
             3. Upload the CSV below
             """)
-            st.markdown("")
             uploaded_file = st.file_uploader("Drop CSV export here", type=["csv"], label_visibility="collapsed")
             if uploaded_file is not None:
                 try:
@@ -480,6 +451,7 @@ def show_dashboard():
                         uploaded_file.seek(0)
                         with open("data/fmc_export.csv", "wb") as f:
                             f.write(uploaded_file.getbuffer())
+                        set_last_refreshed()
                         st.success(f"✅ Success! Uploaded {len(test_df):,} loads. Refresh the page to see updated data.")
                     else:
                         st.error("File appears empty.")
