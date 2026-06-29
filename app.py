@@ -19,23 +19,17 @@ st.set_page_config(
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    /* Main header styling */
     .main-header {
         background: linear-gradient(135deg, #232F3E 0%, #37475A 100%);
         padding: 30px 40px;
         border-radius: 12px;
         margin-bottom: 24px;
-        color: white;
     }
     .main-header h1 { color: white !important; font-size: 2rem; margin-bottom: 4px; }
     .main-header p { color: #ADB5BD; font-size: 0.95rem; margin: 0; }
-
-    /* Metric cards */
     [data-testid="stMetric"] {
-        background: white;
-        border: 1px solid #E9ECEF;
-        border-radius: 10px;
-        padding: 16px 20px;
+        background: white; border: 1px solid #E9ECEF;
+        border-radius: 10px; padding: 16px 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     [data-testid="stMetric"] label {
@@ -45,104 +39,14 @@ st.markdown("""
     [data-testid="stMetric"] [data-testid="stMetricValue"] {
         color: #232F3E !important; font-size: 1.8rem !important; font-weight: 700;
     }
-
-    /* Sidebar */
     [data-testid="stSidebar"] { background: #F8F9FA; }
-
-    /* Data table headers */
     [data-testid="stDataFrame"] {
         border-radius: 10px; overflow: hidden; border: 1px solid #E9ECEF;
     }
     [data-testid="stDataFrame"] [role="columnheader"] {
         font-weight: 700 !important; color: #232F3E !important;
-        text-transform: uppercase; font-size: 0.75rem !important; letter-spacing: 0.3px;
+        text-transform: uppercase; font-size: 0.75rem !important;
     }
-
-    /* Timeline card */
-    .timeline-card {
-        background: white;
-        border: 1px solid #E9ECEF;
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    .timeline-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid #F0F0F0;
-    }
-    .timeline-vrid {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #232F3E;
-    }
-    .timeline-status {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .status-completed { background: #D4EDDA; color: #155724; }
-    .status-transit { background: #FFF3CD; color: #856404; }
-    .status-scheduled { background: #E2E3E5; color: #383D41; }
-    .status-cancelled { background: #F8D7DA; color: #721C24; }
-
-    /* Timeline progress bar */
-    .timeline-progress {
-        display: flex;
-        align-items: center;
-        margin: 20px 0;
-        position: relative;
-    }
-    .timeline-node {
-        width: 14px; height: 14px;
-        border-radius: 50%;
-        border: 3px solid #232F3E;
-        background: white;
-        z-index: 2;
-    }
-    .timeline-node.active { background: #FF9900; border-color: #FF9900; }
-    .timeline-node.completed { background: #28A745; border-color: #28A745; }
-    .timeline-line {
-        flex-grow: 1;
-        height: 4px;
-        background: #E9ECEF;
-        margin: 0 -1px;
-    }
-    .timeline-line.filled { background: #28A745; }
-    .timeline-line.partial { background: linear-gradient(to right, #28A745 50%, #E9ECEF 50%); }
-
-    .timeline-labels {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 8px;
-    }
-    .timeline-label {
-        text-align: center;
-        font-size: 0.75rem;
-        color: #6C757D;
-    }
-    .timeline-label strong {
-        display: block;
-        color: #232F3E;
-        font-size: 0.85rem;
-    }
-    .timeline-meta {
-        display: flex;
-        gap: 24px;
-        margin-top: 16px;
-        padding-top: 12px;
-        border-top: 1px solid #F0F0F0;
-        font-size: 0.8rem;
-        color: #6C757D;
-    }
-    .timeline-meta span { display: flex; align-items: center; gap: 4px; }
-
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -239,126 +143,97 @@ def filter_by_sites(df, sites):
     return df[mask]
 
 
-def render_timeline_card(row):
-    """Render a visual timeline card for a single load."""
+def fmt_time(val):
+    """Format a timestamp for display."""
+    if pd.isna(val) or str(val).strip() == '':
+        return "—"
+    try:
+        dt = pd.to_datetime(val)
+        return dt.strftime("%m/%d %H:%M")
+    except:
+        return str(val)[:16]
+
+
+def render_timeline_native(row):
+    """Render a timeline card using native Streamlit components."""
     origin = row.get("Origin", "?")
     destination = row.get("Destination", "?")
     status = row.get("Status", "")
     vrid = row.get("VRID", "")
     lane = row.get("Lane", "")
     carrier = row.get("Carrier", "")
-    trailer = row.get("Trailer ID", "—")
-    equipment = row.get("Equipment Type", "—")
-
-    # Timestamps
-    origin_sched = row.get("Origin Scheduled Depart", "—")
+    trailer = row.get("Trailer ID", "")
+    equipment = row.get("Equipment Type", "")
+    origin_sched = row.get("Origin Scheduled Depart", "")
     origin_actual = row.get("Origin Actual Arrival", "")
-    dest_sched = row.get("Dest Scheduled Arrival", "—")
+    dest_sched = row.get("Dest Scheduled Arrival", "")
     dest_actual = row.get("Dest Actual Arrival", "")
     dest_finish = row.get("Dest Finish Unload", "")
     late_hrs = row.get("Origin Late Hours", "")
 
-    # Format timestamps for display
-    def fmt_time(val):
-        if pd.isna(val) or str(val).strip() == '':
-            return "—"
-        try:
-            dt = pd.to_datetime(val)
-            return dt.strftime("%m/%d %H:%M")
-        except:
-            return str(val)[:16]
-
-    # Determine progress
+    # Progress indicator
     if "Completed" in status:
-        status_class = "status-completed"
-        status_text = "COMPLETED"
-        line1_class = "filled"
-        line2_class = "filled"
-        node1_class = "completed"
-        node2_class = "completed"
-        node3_class = "completed"
+        progress = "🟢━━━━━━━━━━━🟢━━━━━━━━━━━🟢"
     elif "Transit" in status:
-        status_class = "status-transit"
-        status_text = "IN TRANSIT"
-        line1_class = "filled"
-        line2_class = ""
-        node1_class = "completed"
-        node2_class = "active"
-        node3_class = ""
+        progress = "🟢━━━━━━━━━━━🟡━━━━━━━━━━━⚪"
     elif "Cancelled" in status:
-        status_class = "status-cancelled"
-        status_text = "CANCELLED"
-        line1_class = ""
-        line2_class = ""
-        node1_class = ""
-        node2_class = ""
-        node3_class = ""
+        progress = "🔴─ ─ ─ ─ ─ ─🔴─ ─ ─ ─ ─ ─🔴"
+    elif "Origin" in status:
+        progress = "🟢━━━━━━━━━━━🟡─ ─ ─ ─ ─ ─⚪"
     else:
-        status_class = "status-scheduled"
-        status_text = "SCHEDULED"
-        line1_class = ""
-        line2_class = ""
-        node1_class = "active"
-        node2_class = ""
-        node3_class = ""
+        progress = "🟡─ ─ ─ ─ ─ ─⚪─ ─ ─ ─ ─ ─⚪"
 
-    # Late indicator
-    late_badge = ""
-    if pd.notna(late_hrs) and str(late_hrs).strip() != '' and str(late_hrs) != '—':
+    # Equipment short name
+    equip_short = str(equipment).replace("FIFTY_THREE_FOOT_", "53' ").replace("_", " ").title() if pd.notna(equipment) and str(equipment).strip() else "—"
+
+    # Late badge
+    late_text = ""
+    if pd.notna(late_hrs) and str(late_hrs).strip() != '':
         try:
             hrs = float(late_hrs)
             if hrs > 0:
-                late_badge = f'<span style="color: #DC3545; font-weight: 600;">⚠️ {hrs:.1f}h late at origin</span>'
+                late_text = f"⚠️ {hrs:.1f}h late"
         except:
             pass
 
-    # Equipment short name
-    equip_short = str(equipment).replace("FIFTY_THREE_FOOT_", "53ft ").replace("_", " ").title() if pd.notna(equipment) else "—"
+    with st.container():
+        st.markdown(f"""---""")
 
-    html = f"""
-    <div class="timeline-card">
-        <div class="timeline-header">
-            <div>
-                <span class="timeline-vrid">{vrid}</span>
-                <span style="color: #6C757D; font-size: 0.85rem; margin-left: 12px;">{lane}</span>
-            </div>
-            <span class="timeline-status {status_class}">{status_text}</span>
-        </div>
+        # Header row
+        col_h1, col_h2 = st.columns([3, 1])
+        with col_h1:
+            st.markdown(f"**{vrid}** — `{lane}`")
+        with col_h2:
+            st.markdown(f"**{status}**")
 
-        <div class="timeline-progress">
-            <div class="timeline-node {node1_class}"></div>
-            <div class="timeline-line {line1_class}"></div>
-            <div class="timeline-node {node2_class}"></div>
-            <div class="timeline-line {line2_class}"></div>
-            <div class="timeline-node {node3_class}"></div>
-        </div>
+        # Progress bar
+        st.code(f"  {origin:<12}            🚛              {destination:>12}\n  {progress}", language=None)
 
-        <div class="timeline-labels">
-            <div class="timeline-label">
-                <strong>{origin}</strong>
-                Depart: {fmt_time(origin_sched)}
-                {"<br>Actual: " + fmt_time(origin_actual) if pd.notna(origin_actual) and str(origin_actual).strip() else ""}
-            </div>
-            <div class="timeline-label">
-                <strong>🚛 En Route</strong>
-                {late_badge}
-            </div>
-            <div class="timeline-label">
-                <strong>{destination}</strong>
-                ETA: {fmt_time(dest_sched)}
-                {"<br>Arrived: " + fmt_time(dest_actual) if pd.notna(dest_actual) and str(dest_actual).strip() else ""}
-                {"<br>Unloaded: " + fmt_time(dest_finish) if pd.notna(dest_finish) and str(dest_finish).strip() else ""}
-            </div>
-        </div>
+        # Details row
+        col1, col2, col3 = st.columns(3)
 
-        <div class="timeline-meta">
-            <span>🚚 {carrier}</span>
-            <span>📋 {trailer if pd.notna(trailer) and str(trailer).strip() else '—'}</span>
-            <span>📦 {equip_short}</span>
-        </div>
-    </div>
-    """
-    return html
+        with col1:
+            st.markdown(f"**📍 Origin: {origin}**")
+            st.caption(f"Scheduled: {fmt_time(origin_sched)}")
+            if pd.notna(origin_actual) and str(origin_actual).strip():
+                st.caption(f"Actual: {fmt_time(origin_actual)}")
+            if late_text:
+                st.caption(late_text)
+
+        with col2:
+            st.markdown(f"**🚛 En Route**")
+            st.caption(f"Carrier: {carrier}")
+            if pd.notna(trailer) and str(trailer).strip():
+                st.caption(f"Trailer: {trailer}")
+            st.caption(f"Equipment: {equip_short}")
+
+        with col3:
+            st.markdown(f"**📍 Destination: {destination}**")
+            st.caption(f"ETA: {fmt_time(dest_sched)}")
+            if pd.notna(dest_actual) and str(dest_actual).strip():
+                st.caption(f"Arrived: {fmt_time(dest_actual)}")
+            if pd.notna(dest_finish) and str(dest_finish).strip():
+                st.caption(f"Unloaded: {fmt_time(dest_finish)}")
 
 
 # --- LOGIN PAGE ---
@@ -461,6 +336,20 @@ def show_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
+    # --- SEARCH BAR ---
+    search_query = st.text_input("🔍 Search by VRID, Lane, or Trailer ID", placeholder="e.g. 111RTWTRK or RTPX or AZNG-V568285")
+    if search_query:
+        search_query = search_query.strip().upper()
+        mask = (
+            df_display["VRID"].str.upper().str.contains(search_query, na=False) |
+            df_display["Lane"].str.upper().str.contains(search_query, na=False) |
+            df_display["Trailer ID"].fillna("").str.upper().str.contains(search_query, na=False)
+        )
+        df_display = df_display[mask]
+        st.caption(f"Found {len(df_display)} results for \"{search_query}\"")
+
+    st.markdown("")
+
     # --- METRICS ---
     col1, col2, col3, col4, col5 = st.columns(5)
     total = len(df_display)
@@ -519,16 +408,16 @@ def show_dashboard():
         loads_per_page = 10
         total_pages = max(1, (len(df_sorted) + loads_per_page - 1) // loads_per_page)
 
-        col_pg1, col_pg2, col_pg3 = st.columns([1, 2, 1])
-        with col_pg2:
-            page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, step=1)
-
-        st.caption(f"Showing loads {(page-1)*loads_per_page + 1}–{min(page*loads_per_page, len(df_sorted))} of {len(df_sorted)}")
+        if len(df_sorted) > loads_per_page:
+            page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, step=1, key="timeline_page")
+            st.caption(f"Showing {(page-1)*loads_per_page + 1}–{min(page*loads_per_page, len(df_sorted))} of {len(df_sorted)} loads")
+        else:
+            page = 1
 
         page_data = df_sorted.iloc[(page-1)*loads_per_page : page*loads_per_page]
 
         for _, row in page_data.iterrows():
-            st.markdown(render_timeline_card(row), unsafe_allow_html=True)
+            render_timeline_native(row)
 
     # --- ADMIN PANEL ---
     if user["role"] == "admin":
