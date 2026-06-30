@@ -165,32 +165,33 @@ def fmt_time(val):
     except:
         return str(val)[:16]
 
-
 def render_timeline_native(row):
-    if "Completed" in status:
-        progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🚛"
-    elif "Transit" in status:
-        progress = "🟢━━━━━━━━━━━━🚛━━━━━━━━━━━━⚪"
-    elif "Cancelled" in status:
-        progress = "🔴─ ─ ─ ─ ─ ─ ─ ✖ ─ ─ ─ ─ ─ ─🔴"
-    elif "Origin" in status:
-        progress = "🟢━━━🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
-    else:
-        progress = "🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
+    origin = row.get("Origin", "?")
+    destination = row.get("Destination", "?")
+    status = row.get("Status", "")
+    vrid = row.get("VRID", "")
+    lane = row.get("Lane", "")
+    carrier = row.get("Carrier", "")
+    trailer = row.get("Trailer ID", "")
+    equipment = row.get("Equipment Type", "")
+    origin_sched = row.get("Origin Scheduled Depart", "")
+    origin_actual = row.get("Origin Actual Arrival", "")
+    dest_sched = row.get("Dest Scheduled Arrival", "")
     dest_actual = row.get("Dest Actual Arrival", "")
     dest_finish = row.get("Dest Finish Unload", "")
     late_hrs = row.get("Origin Late Hours", "")
 
+    # Truck faces right (🛻) and moves along the route based on status
     if "Completed" in status:
-        progress = "🟢━━━━━━━━━━━🟢━━━━━━━━━━━🟢"
+        progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🛻"
     elif "Transit" in status:
-        progress = "🟢━━━━━━━━━━━🟡━━━━━━━━━━━⚪"
+        progress = "🟢━━━━━━━━━━━━🛻━━━━━━━━━━━━⚪"
     elif "Cancelled" in status:
-        progress = "🔴─ ─ ─ ─ ─ ─🔴─ ─ ─ ─ ─ ─🔴"
+        progress = "🔴─ ─ ─ ─ ─ ─ ─ ✖ ─ ─ ─ ─ ─ ─🔴"
     elif "Origin" in status:
-        progress = "🟢━━━━━━━━━━━🟡─ ─ ─ ─ ─ ─⚪"
+        progress = "🟢━━━🛻─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
     else:
-        progress = "🟡─ ─ ─ ─ ─ ─⚪─ ─ ─ ─ ─ ─⚪"
+        progress = "🛻─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
 
     equip_short = str(equipment).replace("FIFTY_THREE_FOOT_", "53' ").replace("_", " ").title() if pd.notna(equipment) and str(equipment).strip() else "—"
 
@@ -222,12 +223,19 @@ def render_timeline_native(row):
             if late_text:
                 st.caption(late_text)
         with col2:
-            st.markdown("**🚛 En Route**")
+            st.markdown("**🛻 En Route**")
             st.caption(f"Carrier: {carrier}")
             if pd.notna(trailer) and str(trailer).strip():
                 st.caption(f"Trailer: {trailer}")
             st.caption(f"Equipment: {equip_short}")
         with col3:
+            st.markdown(f"**📍 Destination: {destination}**")
+            st.caption(f"ETA: {fmt_time(dest_sched)}")
+            if pd.notna(dest_actual) and str(dest_actual).strip():
+                st.caption(f"Arrived: {fmt_time(dest_actual)}")
+            if pd.notna(dest_finish) and str(dest_finish).strip():
+                st.caption(f"Unloaded: {fmt_time(dest_finish)}")
+
             st.markdown(f"**📍 Destination: {destination}**")
             st.caption(f"ETA: {fmt_time(dest_sched)}")
             if pd.notna(dest_actual) and str(dest_actual).strip():
