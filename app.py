@@ -420,7 +420,7 @@ def show_dashboard():
             with col_a:
                 st.markdown("**Loads by Site**")
                 site_counts = {}
-                for site in ['RPNC', 'RTPX', 'RPNV', 'RNRM', 'LNRM', 'RIMG', 'RARC', 'RRPR', 'RITO', 'RIVA']:
+                for site in ['RPNC', 'RTPX', 'RPNV', 'RGLD', 'RNRM', 'LNRM', 'RIMG', 'RARC', 'RRPR', 'RITO', 'RIVA']:
                     site_counts[site] = df["Lane"].str.contains(site, na=False).sum()
                 site_df = pd.DataFrame(list(site_counts.items()), columns=["Site", "Loads"])
                 st.dataframe(site_df.sort_values("Loads", ascending=False), use_container_width=True, hide_index=True)

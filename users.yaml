@@ -3,7 +3,7 @@
 # 
 # To add a new user: Copy a user block and modify
 # To revoke access: Delete or comment out the user block
-# Sites: RARC, RIMG, RITO, RIVA, RNRM, LNRM, RPNC, RPNV, RTPX, RRPR
+# Sites: RARC, RGLD, RIMG, RITO, RIVA, RNRM, LNRM, RPNC, RPNV, RTPX, RRPR
 # Co-located pairs share visibility: RPNV+RPNC, RNRM+LNRM
 
 admin:
@@ -35,6 +35,12 @@ rarc_user:
   role: site
   sites: ["RARC"]
   name: "RARC Operations"
+
+rgld_user:
+  password: "RGLD_View_2026"
+  role: site
+  sites: ["RGLD"]
+  name: "RGLD Operations"
 
 rimg_user:
   password: "RIMG_View_2026"
