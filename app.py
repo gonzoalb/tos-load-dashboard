@@ -140,6 +140,8 @@ def load_data():
         "Pallet Count": "Pallet Count",
         "Unit Count": "Unit Count",
     }
+
+    rename_cols = {k: v for k, v in col_map.items() if k in df.columns}
     df = df.rename(columns=rename_cols)
     df["Status"] = df.apply(derive_status, axis=1)
     df["Origin"] = df["Lane"].apply(lambda x: str(x).split("->")[0] if pd.notna(x) and "->" in str(x) else "")
