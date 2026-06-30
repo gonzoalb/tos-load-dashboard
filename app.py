@@ -398,6 +398,43 @@ def show_dashboard():
         df_display = df_display[df_display["Status"] == "🔴 Cancelled"]
 
 
+    # --- OUTSIDE VENDOR HOURS ALERT ---
+    st.markdown("")
+    # Check for loads arriving outside 08:00-15:00
+    df_hours_check = df_display.copy()
+    if "Dest Scheduled Arrival" in df_hours_check.columns:
+        df_hours_check["_dest_time"] = pd.to_datetime(df_hours_check["Dest Scheduled Arrival"], errors='coerce')
+        df_hours_check["_dest_hour"] = df_hours_check["_dest_time"].dt.hour
+
+        outside_hours = df_hours_check[
+            (df_hours_check["_dest_hour"].notna()) &
+            ((df_hours_check["_dest_hour"] < 8) | (df_hours_check["_dest_hour"] >= 15)) &
+            (df_hours_check["Status"] != "🔴 Cancelled")
+        ]
+
+        if len(outside_hours) > 0:
+            with st.expander(f"⚠️ **{len(outside_hours)} loads scheduled OUTSIDE vendor hours (08:00–15:00)**", expanded=True):
+                alert_cols = ["VRID", "Lane", "Status", "Dest Scheduled Arrival", "Trailer ID", "Carrier"]
+                alert_cols = [c for c in alert_cols if c in outside_hours.columns]
+                st.dataframe(
+                    outside_hours[alert_cols].sort_values("Dest Scheduled Arrival", ascending=True),
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "VRID": st.column_config.TextColumn("VRID", width="small"),
+                        "Lane": st.column_config.TextColumn("Lane", width="medium"),
+                        "Status": st.column_config.TextColumn("Status", width="small"),
+                        "Dest Scheduled Arrival": st.column_config.TextColumn("ETA at Dest", width="medium"),
+                        "Trailer ID": st.column_config.TextColumn("Trailer", width="medium"),
+                        "Carrier": st.column_config.TextColumn("Carrier", width="small"),
+                    },
+                )
+                st.caption("Vendor hours of operation: 08:00 – 15:00. Loads above are scheduled to arrive outside this window.")
+        else:
+            st.success("✅ All loads are scheduled within vendor operating hours (08:00–15:00)")
+
+    st.markdown("")
+
     # --- VIEW TOGGLE ---
     view_tab1, view_tab2 = st.tabs(["📋 Table View", "🗺️ Timeline View"])
 
