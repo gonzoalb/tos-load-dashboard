@@ -137,10 +137,9 @@ def load_data():
         "Trailer Id": "Trailer ID", "Canceled Load": "Canceled Load",
         "Trailer Ready Time": "Trailer Ready Time",
         "Origin Late Hours": "Origin Late Hours",
-        "Equipment Type": "Equipment Type",
+        "Pallet Count": "Pallet Count",
+        "Unit Count": "Unit Count",
     }
-
-    rename_cols = {k: v for k, v in col_map.items() if k in df.columns}
     df = df.rename(columns=rename_cols)
     df["Status"] = df.apply(derive_status, axis=1)
     df["Origin"] = df["Lane"].apply(lambda x: str(x).split("->")[0] if pd.notna(x) and "->" in str(x) else "")
@@ -228,7 +227,9 @@ def render_timeline_native(row):
             if pd.notna(trailer) and str(trailer).strip():
                 st.caption(f"Trailer: {trailer}")
             st.caption(f"Equipment: {equip_short}")
-        with col3:
+            units = row.get("Unit Count", 0)
+            if pd.notna(units) and float(units) > 0:
+                st.caption(f"📦 Units: {int(float(units)):,}")
             st.markdown(f"**📍 Destination: {destination}**")
             st.caption(f"ETA: {fmt_time(dest_sched)}")
             if pd.notna(dest_actual) and str(dest_actual).strip():
@@ -373,7 +374,7 @@ def show_dashboard():
         display_cols = [
             "VRID", "Lane", "Status", "Origin Scheduled Depart",
             "Dest Scheduled Arrival", "Dest Actual Arrival",
-            "Trailer ID", "Carrier", "Equipment Type"
+            "Trailer ID", "Carrier", "Equipment Type", "Unit Count"
         ]
         display_cols = [c for c in display_cols if c in df_display.columns]
 
@@ -393,6 +394,7 @@ def show_dashboard():
                 "Trailer ID": st.column_config.TextColumn("Trailer", width="medium"),
                 "Carrier": st.column_config.TextColumn("Carrier", width="small"),
                 "Equipment Type": st.column_config.TextColumn("Equipment", width="medium"),
+                "Unit Count": st.column_config.NumberColumn("Units", width="small", format="%d"),
             },
             hide_index=True,
         )
