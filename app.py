@@ -181,17 +181,17 @@ def render_timeline_native(row):
     dest_finish = row.get("Dest Finish Unload", "")
     late_hrs = row.get("Origin Late Hours", "")
 
-    # Truck faces right (🛻) and moves along the route based on status
+    # Truck faces right (🚛) and moves along the route based on status
     if "Completed" in status:
-        progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🛻"
+        progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🚛"
     elif "Transit" in status:
-        progress = "🟢━━━━━━━━━━━━🛻━━━━━━━━━━━━⚪"
+        progress = "🟢━━━━━━━━━━━━🚛━━━━━━━━━━━━⚪"
     elif "Cancelled" in status:
         progress = "🔴─ ─ ─ ─ ─ ─ ─ ✖ ─ ─ ─ ─ ─ ─🔴"
     elif "Origin" in status:
-        progress = "🟢━━━🛻─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
+        progress = "🟢━━━🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
     else:
-        progress = "🛻─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
+        progress = "🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
 
     equip_short = str(equipment).replace("FIFTY_THREE_FOOT_", "53' ").replace("_", " ").title() if pd.notna(equipment) and str(equipment).strip() else "—"
 
@@ -223,7 +223,7 @@ def render_timeline_native(row):
             if late_text:
                 st.caption(late_text)
         with col2:
-            st.markdown("**🛻 En Route**")
+            st.markdown("**🚛 En Route**")
             st.caption(f"Carrier: {carrier}")
             if pd.notna(trailer) and str(trailer).strip():
                 st.caption(f"Trailer: {trailer}")
