@@ -166,7 +166,7 @@ def fmt_time(val):
     except:
         return str(val)[:16]
 
-def render_timeline_native(row):
+
     origin = row.get("Origin", "?")
     destination = row.get("Destination", "?")
     status = row.get("Status", "")
@@ -182,7 +182,6 @@ def render_timeline_native(row):
     dest_finish = row.get("Dest Finish Unload", "")
     late_hrs = row.get("Origin Late Hours", "")
 
-    # Truck faces right (🚛) and moves along the route based on status
     if "Completed" in status:
         progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🚛"
     elif "Transit" in status:
@@ -232,20 +231,13 @@ def render_timeline_native(row):
             units = row.get("Unit Count", 0)
             if pd.notna(units) and float(units) > 0:
                 st.caption(f"📦 Units: {int(float(units)):,}")
+        with col3:
             st.markdown(f"**📍 Destination: {destination}**")
             st.caption(f"ETA: {fmt_time(dest_sched)}")
             if pd.notna(dest_actual) and str(dest_actual).strip():
                 st.caption(f"Arrived: {fmt_time(dest_actual)}")
             if pd.notna(dest_finish) and str(dest_finish).strip():
                 st.caption(f"Unloaded: {fmt_time(dest_finish)}")
-
-            st.markdown(f"**📍 Destination: {destination}**")
-            st.caption(f"ETA: {fmt_time(dest_sched)}")
-            if pd.notna(dest_actual) and str(dest_actual).strip():
-                st.caption(f"Arrived: {fmt_time(dest_actual)}")
-            if pd.notna(dest_finish) and str(dest_finish).strip():
-                st.caption(f"Unloaded: {fmt_time(dest_finish)}")
-
 
 # --- LOGIN PAGE ---
 def show_login():
@@ -402,10 +394,31 @@ def show_dashboard():
         )
 
     with view_tab2:
-        status_order = {"🟡 In Transit": 0, "🔵 At Origin": 1, "⚪ Scheduled": 2, "✅ Completed": 3, "🔴 Cancelled": 4, "⚪ Planned": 5}
+        # Sort options
+        sort_col1, sort_col2 = st.columns([2, 3])
+        with sort_col1:
+            sort_by = st.selectbox("Sort by", [
+                "Status (Active First)",
+                "Origin Depart (Newest)",
+                "Origin Depart (Oldest)",
+                "Dest ETA (Soonest)",
+                "Lane (A-Z)",
+            ], key="timeline_sort")
+
         df_sorted = df_display.copy()
-        df_sorted["_sort"] = df_sorted["Status"].map(status_order).fillna(5)
-        df_sorted = df_sorted.sort_values(["_sort", "Origin Scheduled Depart"], ascending=[True, True])
+
+        if sort_by == "Status (Active First)":
+            status_order = {"🟡 In Transit": 0, "🔵 At Origin": 1, "⚪ Scheduled": 2, "✅ Completed": 3, "🔴 Cancelled": 4, "⚪ Planned": 5}
+            df_sorted["_sort"] = df_sorted["Status"].map(status_order).fillna(5)
+            df_sorted = df_sorted.sort_values(["_sort", "Origin Scheduled Depart"], ascending=[True, True])
+        elif sort_by == "Origin Depart (Newest)":
+            df_sorted = df_sorted.sort_values("Origin Scheduled Depart", ascending=False)
+        elif sort_by == "Origin Depart (Oldest)":
+            df_sorted = df_sorted.sort_values("Origin Scheduled Depart", ascending=True)
+        elif sort_by == "Dest ETA (Soonest)":
+            df_sorted = df_sorted.sort_values("Dest Scheduled Arrival", ascending=True)
+        elif sort_by == "Lane (A-Z)":
+            df_sorted = df_sorted.sort_values("Lane", ascending=True)
 
         loads_per_page = 10
         total_pages = max(1, (len(df_sorted) + loads_per_page - 1) // loads_per_page)
@@ -418,7 +431,6 @@ def show_dashboard():
         page_data = df_sorted.iloc[(page-1)*loads_per_page : page*loads_per_page]
         for _, row in page_data.iterrows():
             render_timeline_native(row)
-
     # --- ADMIN PANEL ---
     if user["role"] == "admin":
         st.markdown("")
