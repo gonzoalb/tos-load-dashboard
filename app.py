@@ -167,78 +167,85 @@ def fmt_time(val):
     except:
         return str(val)[:16]
 
+def render_timeline_native(row):
+    try:
+        origin = str(row.get("Origin", "?"))
+        destination = str(row.get("Destination", "?"))
+        status = str(row.get("Status", ""))
+        vrid = str(row.get("VRID", ""))
+        lane = str(row.get("Lane", ""))
+        carrier = str(row.get("Carrier", ""))
+        trailer = str(row.get("Trailer ID", "")) if pd.notna(row.get("Trailer ID")) else ""
+        equipment = str(row.get("Equipment Type", "")) if pd.notna(row.get("Equipment Type")) else ""
+        origin_sched = row.get("Origin Scheduled Depart", "")
+        origin_actual = row.get("Origin Actual Arrival", "")
+        dest_sched = row.get("Dest Scheduled Arrival", "")
+        dest_actual = row.get("Dest Actual Arrival", "")
+        dest_finish = row.get("Dest Finish Unload", "")
+        late_hrs = row.get("Origin Late Hours", "")
 
-    origin = row.get("Origin", "?")
-    destination = row.get("Destination", "?")
-    status = row.get("Status", "")
-    vrid = row.get("VRID", "")
-    lane = row.get("Lane", "")
-    carrier = row.get("Carrier", "")
-    trailer = row.get("Trailer ID", "")
-    equipment = row.get("Equipment Type", "")
-    origin_sched = row.get("Origin Scheduled Depart", "")
-    origin_actual = row.get("Origin Actual Arrival", "")
-    dest_sched = row.get("Dest Scheduled Arrival", "")
-    dest_actual = row.get("Dest Actual Arrival", "")
-    dest_finish = row.get("Dest Finish Unload", "")
-    late_hrs = row.get("Origin Late Hours", "")
+        if "Completed" in status:
+            progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🚛"
+        elif "Transit" in status:
+            progress = "🟢━━━━━━━━━━━━🚛━━━━━━━━━━━━⚪"
+        elif "Cancelled" in status:
+            progress = "🔴─ ─ ─ ─ ─ ─ ─ ✖ ─ ─ ─ ─ ─ ─🔴"
+        elif "Origin" in status:
+            progress = "🟢━━━🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
+        else:
+            progress = "🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
 
-    if "Completed" in status:
-        progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🚛"
-    elif "Transit" in status:
-        progress = "🟢━━━━━━━━━━━━🚛━━━━━━━━━━━━⚪"
-    elif "Cancelled" in status:
-        progress = "🔴─ ─ ─ ─ ─ ─ ─ ✖ ─ ─ ─ ─ ─ ─🔴"
-    elif "Origin" in status:
-        progress = "🟢━━━🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
-    else:
-        progress = "🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
+        equip_short = equipment.replace("FIFTY_THREE_FOOT_", "53' ").replace("_", " ").title() if equipment else "—"
 
-    equip_short = str(equipment).replace("FIFTY_THREE_FOOT_", "53' ").replace("_", " ").title() if pd.notna(equipment) and str(equipment).strip() else "—"
+        late_text = ""
+        if pd.notna(late_hrs) and str(late_hrs).strip() not in ('', 'nan'):
+            try:
+                hrs = float(late_hrs)
+                if hrs > 0:
+                    late_text = f"⚠️ {hrs:.1f}h late"
+            except:
+                pass
 
-    late_text = ""
-    if pd.notna(late_hrs) and str(late_hrs).strip() != '':
-        try:
-            hrs = float(late_hrs)
-            if hrs > 0:
-                late_text = f"⚠️ {hrs:.1f}h late"
-        except:
-            pass
+        with st.container():
+            st.markdown("---")
+            col_h1, col_h2 = st.columns([3, 1])
+            with col_h1:
+                st.markdown(f"**{vrid}** — `{lane}`")
+            with col_h2:
+                st.markdown(f"**{status}**")
 
-    with st.container():
-        st.markdown("---")
-        col_h1, col_h2 = st.columns([3, 1])
-        with col_h1:
-            st.markdown(f"**{vrid}** — `{lane}`")
-        with col_h2:
-            st.markdown(f"**{status}**")
+            st.code(f"  {origin:<14}                          {destination:>14}\n  {progress}", language=None)
 
-        st.code(f"  {origin:<14}                          {destination:>14}\n  {progress}", language=None)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"**📍 Origin: {origin}**")
+                st.caption(f"Scheduled: {fmt_time(origin_sched)}")
+                if pd.notna(origin_actual) and str(origin_actual).strip() not in ('', 'nan'):
+                    st.caption(f"Actual: {fmt_time(origin_actual)}")
+                if late_text:
+                    st.caption(late_text)
+            with col2:
+                st.markdown("**🚛 En Route**")
+                st.caption(f"Carrier: {carrier}")
+                if trailer:
+                    st.caption(f"Trailer: {trailer}")
+                st.caption(f"Equipment: {equip_short}")
+                try:
+                    units = row.get("Unit Count", 0)
+                    if pd.notna(units) and int(float(units)) > 0:
+                        st.caption(f"📦 Units: {int(float(units)):,}")
+                except:
+                    pass
+            with col3:
+                st.markdown(f"**📍 Destination: {destination}**")
+                st.caption(f"ETA: {fmt_time(dest_sched)}")
+                if pd.notna(dest_actual) and str(dest_actual).strip() not in ('', 'nan'):
+                    st.caption(f"Arrived: {fmt_time(dest_actual)}")
+                if pd.notna(dest_finish) and str(dest_finish).strip() not in ('', 'nan'):
+                    st.caption(f"Unloaded: {fmt_time(dest_finish)}")
+    except Exception as e:
+        st.error(f"Error rendering load {row.get('VRID', '?')}: {str(e)}")
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"**📍 Origin: {origin}**")
-            st.caption(f"Scheduled: {fmt_time(origin_sched)}")
-            if pd.notna(origin_actual) and str(origin_actual).strip():
-                st.caption(f"Actual: {fmt_time(origin_actual)}")
-            if late_text:
-                st.caption(late_text)
-        with col2:
-            st.markdown("**🚛 En Route**")
-            st.caption(f"Carrier: {carrier}")
-            if pd.notna(trailer) and str(trailer).strip():
-                st.caption(f"Trailer: {trailer}")
-            st.caption(f"Equipment: {equip_short}")
-            units = row.get("Unit Count", 0)
-            if pd.notna(units) and float(units) > 0:
-                st.caption(f"📦 Units: {int(float(units)):,}")
-        with col3:
-            st.markdown(f"**📍 Destination: {destination}**")
-            st.caption(f"ETA: {fmt_time(dest_sched)}")
-            if pd.notna(dest_actual) and str(dest_actual).strip():
-                st.caption(f"Arrived: {fmt_time(dest_actual)}")
-            if pd.notna(dest_finish) and str(dest_finish).strip():
-                st.caption(f"Unloaded: {fmt_time(dest_finish)}")
 
 # --- LOGIN PAGE ---
 def show_login():
