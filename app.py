@@ -137,6 +137,7 @@ def load_data():
         "Trailer Id": "Trailer ID", "Canceled Load": "Canceled Load",
         "Trailer Ready Time": "Trailer Ready Time",
         "Origin Late Hours": "Origin Late Hours",
+        "Equipment Type": "Equipment Type",
         "Pallet Count": "Pallet Count",
         "Unit Count": "Unit Count",
     }
@@ -359,7 +360,36 @@ def show_dashboard():
     col4.metric("Scheduled", f"{scheduled:,}")
     col5.metric("Cancelled", f"{cancelled:,}")
 
+    # --- QUICK FILTER BUTTONS ---
     st.markdown("")
+    qf1, qf2, qf3, qf4, qf5 = st.columns(5)
+    with qf1:
+        if st.button("Show All", use_container_width=True):
+            st.session_state["quick_filter"] = "all"
+    with qf2:
+        if st.button("✅ Completed Only", use_container_width=True):
+            st.session_state["quick_filter"] = "completed"
+    with qf3:
+        if st.button("🟡 In Transit Only", use_container_width=True):
+            st.session_state["quick_filter"] = "transit"
+    with qf4:
+        if st.button("⚪ Scheduled Only", use_container_width=True):
+            st.session_state["quick_filter"] = "scheduled"
+    with qf5:
+        if st.button("🔴 Cancelled Only", use_container_width=True):
+            st.session_state["quick_filter"] = "cancelled"
+
+    # Apply quick filter
+    quick_filter = st.session_state.get("quick_filter", "all")
+    if quick_filter == "completed":
+        df_display = df_display[df_display["Status"] == "✅ Completed"]
+    elif quick_filter == "transit":
+        df_display = df_display[df_display["Status"] == "🟡 In Transit"]
+    elif quick_filter == "scheduled":
+        df_display = df_display[df_display["Status"] == "⚪ Scheduled"]
+    elif quick_filter == "cancelled":
+        df_display = df_display[df_display["Status"] == "🔴 Cancelled"]
+
 
     # --- VIEW TOGGLE ---
     view_tab1, view_tab2 = st.tabs(["📋 Table View", "🗺️ Timeline View"])
