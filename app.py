@@ -167,17 +167,16 @@ def fmt_time(val):
 
 
 def render_timeline_native(row):
-    origin = row.get("Origin", "?")
-    destination = row.get("Destination", "?")
-    status = row.get("Status", "")
-    vrid = row.get("VRID", "")
-    lane = row.get("Lane", "")
-    carrier = row.get("Carrier", "")
-    trailer = row.get("Trailer ID", "")
-    equipment = row.get("Equipment Type", "")
-    origin_sched = row.get("Origin Scheduled Depart", "")
-    origin_actual = row.get("Origin Actual Arrival", "")
-    dest_sched = row.get("Dest Scheduled Arrival", "")
+    if "Completed" in status:
+        progress = "🟢━━━━━━━━━━━━━━━━━━━━━━━━━🟢🚛"
+    elif "Transit" in status:
+        progress = "🟢━━━━━━━━━━━━🚛━━━━━━━━━━━━⚪"
+    elif "Cancelled" in status:
+        progress = "🔴─ ─ ─ ─ ─ ─ ─ ✖ ─ ─ ─ ─ ─ ─🔴"
+    elif "Origin" in status:
+        progress = "🟢━━━🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
+    else:
+        progress = "🚛─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─⚪"
     dest_actual = row.get("Dest Actual Arrival", "")
     dest_finish = row.get("Dest Finish Unload", "")
     late_hrs = row.get("Origin Late Hours", "")
@@ -212,7 +211,7 @@ def render_timeline_native(row):
         with col_h2:
             st.markdown(f"**{status}**")
 
-        st.code(f"  {origin:<12}            🚛              {destination:>12}\n  {progress}", language=None)
+        st.code(f"  {origin:<14}                          {destination:>14}\n  {progress}", language=None)
 
         col1, col2, col3 = st.columns(3)
         with col1:
