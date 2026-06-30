@@ -430,6 +430,15 @@ def show_dashboard():
                     },
                 )
                 st.caption("Vendor hours of operation: 08:00 – 15:00. Loads above are scheduled to arrive outside this window.")
+                # Download button
+                csv_data = outside_hours[alert_cols].sort_values("Dest Scheduled Arrival", ascending=True).to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Outside Hours Report (CSV)",
+                    data=csv_data,
+                    file_name="outside_vendor_hours.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
         else:
             st.success("✅ All loads are scheduled within vendor operating hours (08:00–15:00)")
 
