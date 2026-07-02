@@ -315,12 +315,23 @@ def show_dashboard():
         st.markdown("")
         direction = st.radio("Direction", ["All", "Inbound", "Outbound"], horizontal=True)
         st.divider()
+        st.markdown("")
+        if "Week" in df_filtered.columns:
+            weeks_avail = sorted([w for w in df_filtered["Week"].unique() if w], key=lambda x: int(x.replace("WK","")) if x.startswith("WK") else 0)
+            selected_weeks = st.multiselect("Week", weeks_avail, default=weeks_avail, key="week_filter")
         # Last refreshed - prominent
         last_refresh = get_last_refreshed()
         st.markdown("📅 **Data Last Refreshed**")
         st.info(f"🕐 {last_refresh}")
 
     df_display = df_filtered[df_filtered["Status"].isin(selected_statuses)]
+
+    # Apply week filter
+    try:
+        if "Week" in df_display.columns and selected_weeks:
+            df_display = df_display[df_display["Week"].isin(selected_weeks)]
+    except NameError:
+        pass
 
     if direction == "Inbound" and "ALL" not in sites:
         mask = pd.Series([False] * len(df_display))
