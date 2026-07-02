@@ -147,7 +147,9 @@ def load_data():
     df["Status"] = df.apply(derive_status, axis=1)
     df["Origin"] = df["Lane"].apply(lambda x: str(x).split("->")[0] if pd.notna(x) and "->" in str(x) else "")
     df["Destination"] = df["Lane"].apply(lambda x: str(x).split("->")[-1] if pd.notna(x) and "->" in str(x) else "")
-    return df
+    if "Origin Scheduled Depart" in df.columns:
+        week_nums = pd.to_datetime(df["Origin Scheduled Depart"], errors="coerce").dt.isocalendar().week
+        df["Week"] = week_nums.apply(lambda x: f"WK{int(x)}" if pd.notna(x) else "")
 
 
 def filter_by_sites(df, sites):
@@ -449,7 +451,7 @@ def show_dashboard():
 
     with view_tab1:
         display_cols = [
-            "VRID", "Lane", "Status", "Origin Scheduled Depart",
+            "VRID", "Week", "Lane", "Status", "Origin Scheduled Depart",
             "Dest Scheduled Arrival", "Dest Actual Arrival",
             "Trailer ID", "Carrier", "Equipment Type", "Unit Count"
         ]
@@ -463,6 +465,7 @@ def show_dashboard():
             use_container_width=True, height=500,
             column_config={
                 "VRID": st.column_config.TextColumn("VRID", width="small"),
+                "Week": st.column_config.TextColumn("Week", width="small"),
                 "Lane": st.column_config.TextColumn("Lane", width="medium"),
                 "Status": st.column_config.TextColumn("Status", width="small"),
                 "Origin Scheduled Depart": st.column_config.TextColumn("Origin Depart", width="medium"),
