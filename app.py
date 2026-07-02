@@ -150,6 +150,7 @@ def load_data():
     if "Origin Scheduled Depart" in df.columns:
         week_nums = pd.to_datetime(df["Origin Scheduled Depart"], errors="coerce").dt.isocalendar().week
         df["Week"] = week_nums.apply(lambda x: f"WK{int(x)}" if pd.notna(x) else "")
+    return df
 
 
 def filter_by_sites(df, sites):
