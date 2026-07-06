@@ -560,7 +560,7 @@ def show_dashboard():
         with tab3:
             st.markdown("**Refresh dashboard data:**")
             st.markdown("""
-            1. Open your saved query in [Hubble Workbench](https://datacentral.a2z.com/workbench)
+            1. Open your saved query in [Hubble Workbench](https://datacentral.a2z.com/workbench/query-explorer?queryId=e5c22f75-b4f8-43fc-9b94-48b03a6912ca)
             2. Click **Run** → **Download Results**
             3. Upload the CSV below
             """)
