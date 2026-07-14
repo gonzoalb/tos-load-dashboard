@@ -414,47 +414,77 @@ def show_dashboard():
 
     # --- OUTSIDE VENDOR HOURS ALERT ---
     st.markdown("")
-    # Check for loads arriving outside 08:00-15:00
+    # Only flag loads where a VENDOR SITE is receiving/sending outside 08:00-15:00
+    # Amazon sites are 24hr - excluded from this check
+    VENDOR_SITES = ["RARC", "RGLD", "RIMG", "RITO", "RIVA", "RNRM", "LNRM", "RPNC", "RPNV", "RTPX", "RRPR"]
+
     df_hours_check = df_display.copy()
-    if "Dest Scheduled Arrival" in df_hours_check.columns:
-        df_hours_check["_dest_time"] = pd.to_datetime(df_hours_check["Dest Scheduled Arrival"], errors='coerce')
-        df_hours_check["_dest_hour"] = df_hours_check["_dest_time"].dt.hour
+    outside_hours_list = []
 
-        outside_hours = df_hours_check[
-            (df_hours_check["_dest_hour"].notna()) &
-            ((df_hours_check["_dest_hour"] < 8) | (df_hours_check["_dest_hour"] >= 15)) &
-            (df_hours_check["Status"] != "🔴 Cancelled")
-        ]
+    # Check INBOUND to vendor site (destination is vendor)
+    if "Dest Scheduled Arrival" in df_hours_check.columns and "Destination" in df_hours_check.columns:
+        df_ib = df_hours_check[df_hours_check["Destination"].isin(VENDOR_SITES)].copy()
+        if len(df_ib) > 0:
+            df_ib["_check_time"] = pd.to_datetime(df_ib["Dest Scheduled Arrival"], errors="coerce")
+            df_ib["_check_hour"] = df_ib["_check_time"].dt.hour
+            ib_outside = df_ib[
+                (df_ib["_check_hour"].notna()) &
+                ((df_ib["_check_hour"] < 8) | (df_ib["_check_hour"] >= 15)) &
+                (df_ib["Status"] != "🔴 Cancelled")
+            ]
+            if len(ib_outside) > 0:
+                ib_outside = ib_outside.copy()
+                ib_outside["Direction"] = "Inbound"
+                ib_outside["Flag Time"] = ib_outside["Dest Scheduled Arrival"]
+                outside_hours_list.append(ib_outside)
 
-        if len(outside_hours) > 0:
-            with st.expander(f"⚠️ **{len(outside_hours)} loads scheduled OUTSIDE vendor hours (08:00–15:00)**", expanded=True):
-                alert_cols = ["VRID", "Lane", "Status", "Dest Scheduled Arrival", "Trailer ID", "Carrier"]
-                alert_cols = [c for c in alert_cols if c in outside_hours.columns]
-                st.dataframe(
-                    outside_hours[alert_cols].sort_values("Dest Scheduled Arrival", ascending=True),
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "VRID": st.column_config.TextColumn("VRID", width="small"),
-                        "Lane": st.column_config.TextColumn("Lane", width="medium"),
-                        "Status": st.column_config.TextColumn("Status", width="small"),
-                        "Dest Scheduled Arrival": st.column_config.TextColumn("ETA at Dest", width="medium"),
-                        "Trailer ID": st.column_config.TextColumn("Trailer", width="medium"),
-                        "Carrier": st.column_config.TextColumn("Carrier", width="small"),
-                    },
-                )
-                st.caption("Vendor hours of operation: 08:00 – 15:00. Loads above are scheduled to arrive outside this window.")
-                # Download button
-                csv_data = outside_hours[alert_cols].sort_values("Dest Scheduled Arrival", ascending=True).to_csv(index=False)
-                st.download_button(
-                    label="📥 Download Outside Hours Report (CSV)",
-                    data=csv_data,
-                    file_name="outside_vendor_hours.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-        else:
-            st.success("✅ All loads are scheduled within vendor operating hours (08:00–15:00)")
+    # Check OUTBOUND from vendor site (origin is vendor)
+    if "Origin Scheduled Depart" in df_hours_check.columns and "Origin" in df_hours_check.columns:
+        df_ob = df_hours_check[df_hours_check["Origin"].isin(VENDOR_SITES)].copy()
+        if len(df_ob) > 0:
+            df_ob["_check_time"] = pd.to_datetime(df_ob["Origin Scheduled Depart"], errors="coerce")
+            df_ob["_check_hour"] = df_ob["_check_time"].dt.hour
+            ob_outside = df_ob[
+                (df_ob["_check_hour"].notna()) &
+                ((df_ob["_check_hour"] < 8) | (df_ob["_check_hour"] >= 15)) &
+                (df_ob["Status"] != "🔴 Cancelled")
+            ]
+            if len(ob_outside) > 0:
+                ob_outside = ob_outside.copy()
+                ob_outside["Direction"] = "Outbound"
+                ob_outside["Flag Time"] = ob_outside["Origin Scheduled Depart"]
+                outside_hours_list.append(ob_outside)
+
+    if outside_hours_list:
+        outside_hours = pd.concat(outside_hours_list, ignore_index=True).drop_duplicates(subset=["VRID"])
+        with st.expander(f"⚠️ **{len(outside_hours)} loads scheduled OUTSIDE vendor hours (08:00–15:00)**", expanded=True):
+            alert_cols = ["VRID", "Lane", "Direction", "Status", "Flag Time", "Trailer ID", "Carrier"]
+            alert_cols = [c for c in alert_cols if c in outside_hours.columns]
+            st.dataframe(
+                outside_hours[alert_cols].sort_values("Flag Time", ascending=True),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "VRID": st.column_config.TextColumn("VRID", width="small"),
+                    "Lane": st.column_config.TextColumn("Lane", width="medium"),
+                    "Direction": st.column_config.TextColumn("Direction", width="small"),
+                    "Status": st.column_config.TextColumn("Status", width="small"),
+                    "Flag Time": st.column_config.TextColumn("Scheduled Time", width="medium"),
+                    "Trailer ID": st.column_config.TextColumn("Trailer", width="medium"),
+                    "Carrier": st.column_config.TextColumn("Carrier", width="small"),
+                },
+            )
+            st.caption("Vendor hours: 08:00–15:00. Only flags loads arriving at or departing from vendor repair sites outside this window. Amazon FCs (24hr) excluded.")
+            csv_data = outside_hours[alert_cols].sort_values("Flag Time", ascending=True).to_csv(index=False)
+            st.download_button(
+                label="📥 Download Outside Hours Report (CSV)",
+                data=csv_data,
+                file_name="outside_vendor_hours.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+    else:
+        st.success("✅ All vendor site loads are scheduled within operating hours (08:00–15:00)")
 
     st.markdown("")
 
