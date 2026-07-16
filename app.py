@@ -521,6 +521,19 @@ def show_dashboard():
             hide_index=True,
         )
 
+        # Download table as CSV
+        table_csv = df_display[display_cols].sort_values(
+            by="Origin Scheduled Depart" if "Origin Scheduled Depart" in display_cols else "VRID",
+            ascending=False
+        ).to_csv(index=False)
+        st.download_button(
+            label="📥 Download Table (CSV)",
+            data=table_csv,
+            file_name="tos_loads.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
     with view_tab2:
         # Sort options
         sort_col1, sort_col2 = st.columns([2, 3])
