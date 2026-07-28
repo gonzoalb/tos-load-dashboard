@@ -414,7 +414,7 @@ def show_dashboard():
 
     # --- OUTSIDE VENDOR HOURS ALERT ---
     st.markdown("")
-    # Only flag loads where a VENDOR SITE is receiving/sending outside 08:00-15:00
+    # Only flag loads where a VENDOR SITE is receiving/sending outside 07:00-16:00
     # Amazon sites are 24hr - excluded from this check
     VENDOR_SITES = ["RARC", "RGLD", "RIMG", "RITO", "RIVA", "RNRM", "LNRM", "RPNC", "RPNV", "RTPX", "RRPR"]
 
@@ -429,7 +429,7 @@ def show_dashboard():
             df_ib["_check_hour"] = df_ib["_check_time"].dt.hour
             ib_outside = df_ib[
                 (df_ib["_check_hour"].notna()) &
-                ((df_ib["_check_hour"] < 8) | (df_ib["_check_hour"] >= 15)) &
+                ((df_ib["_check_hour"] < 7) | (df_ib["_check_hour"] >= 16)) &
                 (df_ib["Status"] != "🔴 Cancelled")
             ]
             if len(ib_outside) > 0:
@@ -446,7 +446,7 @@ def show_dashboard():
             df_ob["_check_hour"] = df_ob["_check_time"].dt.hour
             ob_outside = df_ob[
                 (df_ob["_check_hour"].notna()) &
-                ((df_ob["_check_hour"] < 8) | (df_ob["_check_hour"] >= 15)) &
+                ((df_ob["_check_hour"] < 7) | (df_ob["_check_hour"] >= 16)) &
                 (df_ob["Status"] != "🔴 Cancelled")
             ]
             if len(ob_outside) > 0:
@@ -457,7 +457,7 @@ def show_dashboard():
 
     if outside_hours_list:
         outside_hours = pd.concat(outside_hours_list, ignore_index=True).drop_duplicates(subset=["VRID"])
-        with st.expander(f"⚠️ **{len(outside_hours)} loads scheduled OUTSIDE vendor hours (08:00–15:00)**", expanded=True):
+        with st.expander(f"⚠️ **{len(outside_hours)} loads scheduled OUTSIDE vendor hours (07:00–16:00)**", expanded=True):
             alert_cols = ["VRID", "Lane", "Direction", "Status", "Flag Time", "Trailer ID", "Carrier"]
             alert_cols = [c for c in alert_cols if c in outside_hours.columns]
             st.dataframe(
@@ -484,7 +484,7 @@ def show_dashboard():
                 use_container_width=True,
             )
     else:
-        st.success("✅ All vendor site loads are scheduled within operating hours (08:00–15:00)")
+        st.success("✅ All vendor site loads are scheduled within operating hours (07:00–16:00)")
 
     st.markdown("")
 
