@@ -607,6 +607,36 @@ def show_dashboard():
             2. Click **Run** → **Download Results**
             3. Upload the CSV below
             """)
+            with st.expander("Backup SQL (includes FindWork loads)"):
+                st.markdown("""
+**Use this if sites report missing loads:**
+```sql
+SELECT vrid AS "Load #", scac AS "Carrier", subcarrier AS "Subcarrier",
+    lane AS "Lane", account_id AS "Shipper Accounts",
+    origin_scheduled_depart AS "Origin Scheduled Depart",
+    origin_calc_arrival AS "Origin Actual Arrival",
+    dest_scheduled_arrival AS "Dest Scheduled Arrival",
+    dest_begin_unloading_time AS "Dest Actual Arrival",
+    dest_finish_unloading_time AS "Dest Finish Unload",
+    trailer_id AS "Trailer Id", canceled_load AS "Canceled Load",
+    trailer_ready_time AS "Trailer Ready Time",
+    origin_arrival_late_hrs AS "Origin Late Hours",
+    equipment_type AS "Equipment Type",
+    pallet_count AS "Pallet Count",
+    total_pkg_unit_count AS "Unit Count"
+FROM oss.v_load_summary
+WHERE (account_id = 'TransfersOutsideServices'
+    OR (account_id = 'FindWork' AND (
+        lane LIKE '%RARC%' OR lane LIKE '%RGLD%' OR lane LIKE '%RIMG%'
+        OR lane LIKE '%RITO%' OR lane LIKE '%RIVA%' OR lane LIKE '%RNRM%'
+        OR lane LIKE '%LNRM%' OR lane LIKE '%RPNC%' OR lane LIKE '%RPNV%'
+        OR lane LIKE '%RTPX%' OR lane LIKE '%RRPR%')))
+  AND dest_country IN ('US', 'CA')
+  AND origin_scheduled_depart BETWEEN DATEADD(day, -14, GETDATE()) AND DATEADD(day, 14, GETDATE())
+ORDER BY origin_scheduled_depart DESC
+```
+Includes FindWork loads that touch vendor sites.
+                """)
             uploaded_file = st.file_uploader("Drop CSV export here", type=["csv"], label_visibility="collapsed")
             if uploaded_file is not None:
                 try:
