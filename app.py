@@ -548,16 +548,22 @@ def show_dashboard():
 
         df_sorted = df_display.copy()
 
+        osd_col = "Origin Scheduled Depart" if "Origin Scheduled Depart" in df_sorted.columns else None
+        dsa_col = "Dest Scheduled Arrival" if "Dest Scheduled Arrival" in df_sorted.columns else None
+
         if sort_by == "Status (Active First)":
             status_order = {"🟡 In Transit": 0, "🔵 At Origin": 1, "⚪ Scheduled": 2, "✅ Completed": 3, "🔴 Cancelled": 4, "⚪ Planned": 5}
             df_sorted["_sort"] = df_sorted["Status"].map(status_order).fillna(5)
-            df_sorted = df_sorted.sort_values(["_sort", "Origin Scheduled Depart"], ascending=[True, True])
-        elif sort_by == "Origin Depart (Newest)":
-            df_sorted = df_sorted.sort_values("Origin Scheduled Depart", ascending=False)
-        elif sort_by == "Origin Depart (Oldest)":
-            df_sorted = df_sorted.sort_values("Origin Scheduled Depart", ascending=True)
-        elif sort_by == "Dest ETA (Soonest)":
-            df_sorted = df_sorted.sort_values("Dest Scheduled Arrival", ascending=True)
+            if osd_col:
+                df_sorted = df_sorted.sort_values(["_sort", osd_col], ascending=[True, True])
+            else:
+                df_sorted = df_sorted.sort_values("_sort", ascending=True)
+        elif sort_by == "Origin Depart (Newest)" and osd_col:
+            df_sorted = df_sorted.sort_values(osd_col, ascending=False)
+        elif sort_by == "Origin Depart (Oldest)" and osd_col:
+            df_sorted = df_sorted.sort_values(osd_col, ascending=True)
+        elif sort_by == "Dest ETA (Soonest)" and dsa_col:
+            df_sorted = df_sorted.sort_values(dsa_col, ascending=True)
         elif sort_by == "Lane (A-Z)":
             df_sorted = df_sorted.sort_values("Lane", ascending=True)
 
