@@ -318,7 +318,7 @@ def show_dashboard():
         st.divider()
         st.markdown("")
         if "Week" in df_filtered.columns:
-            weeks_avail = sorted([w for w in df_filtered["Week"].unique() if w], key=lambda x: int(x.replace("WK","")) if x.startswith("WK") else 0)
+            weeks_avail = sorted([w for w in df_filtered["Week"].unique() if w and isinstance(w, str)], key=lambda x: int(x.replace("WK","")) if x.startswith("WK") else 0)
             selected_weeks = st.multiselect("Week", weeks_avail, default=weeks_avail, key="week_filter")
         # Last refreshed - prominent
         last_refresh = get_last_refreshed()
