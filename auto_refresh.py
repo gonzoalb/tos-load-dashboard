@@ -49,11 +49,18 @@ def find_latest_hubble_csv():
     recent_csvs.sort(key=os.path.getmtime, reverse=True)
 
     # Check if the newest one looks like our Hubble export (has expected columns)
+    REQUIRED_COLS = ['lane', 'origin scheduled depart', 'carrier']
+    REJECT_COLS = ['business types', 'pull time', 'copycount']  # FMC format - wrong file
+
     for csv_path in recent_csvs:
         try:
             with open(csv_path, 'r', encoding='utf-8') as f:
                 header = f.readline().lower()
-                if 'lane' in header and ('vrid' in header or 'load' in header):
+                # Reject FMC scheduling files
+                if any(col in header for col in REJECT_COLS):
+                    continue
+                # Must have required Hubble columns
+                if all(col in header for col in REQUIRED_COLS):
                     return csv_path
         except:
             continue
