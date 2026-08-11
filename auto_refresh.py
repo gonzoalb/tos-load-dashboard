@@ -25,7 +25,12 @@ DATA_FILE = os.path.join(REPO_DIR, "data", "fmc_export.csv")
 TIMESTAMP_FILE = os.path.join(REPO_DIR, "data", "last_refreshed.json")
 DOWNLOADS_DIR = r"C:\Users\gonzoalb\Downloads"
 GIT_PATH = r"C:\Users\gonzoalb\AppData\Local\Programs\Git\cmd\git.exe"
-GITHUB_TOKEN = os.environ.get("TOS_GITHUB_TOKEN", "")
+GITHUB_TOKEN = os.environ.get("TOS_GITHUB_TOKEN", "").strip()
+if not GITHUB_TOKEN:
+    # Fallback: read from .token file if env var not set
+    token_file = os.path.join(REPO_DIR, ".token")
+    if os.path.exists(token_file):
+        GITHUB_TOKEN = open(token_file).read().strip()
 REPO_URL = f"https://gonzoalb:{GITHUB_TOKEN}@github.com/gonzoalb/tos-load-dashboard.git"
 
 # How recent must the CSV be (in hours) to be considered "fresh"
