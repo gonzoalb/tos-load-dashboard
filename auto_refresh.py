@@ -52,16 +52,22 @@ def find_latest_hubble_csv():
     REQUIRED_COLS = ['lane', 'origin scheduled depart', 'carrier']
     REJECT_COLS = ['business types', 'pull time', 'copycount']  # FMC format - wrong file
 
-    for csv_path in recent_csvs:
+    # Check both CSV and TSV files
+    tsv_files = glob.glob(os.path.join(DOWNLOADS_DIR, "*.tsv"))
+    all_files = recent_csvs + [f for f in tsv_files if os.path.getmtime(f) > cutoff]
+    all_files.sort(key=os.path.getmtime, reverse=True)
+
+    for file_path in all_files:
         try:
-            with open(csv_path, 'r', encoding='utf-8') as f:
+            sep = '\t' if file_path.endswith('.tsv') else ','
+            with open(file_path, 'r', encoding='utf-8') as f:
                 header = f.readline().lower()
                 # Reject FMC scheduling files
                 if any(col in header for col in REJECT_COLS):
                     continue
-                # Must have required Hubble columns
+                # Must have required Hubble columns (check with tab or comma sep)
                 if all(col in header for col in REQUIRED_COLS):
-                    return csv_path
+                    return file_path
         except:
             continue
 
@@ -119,10 +125,16 @@ def main():
     print(f"   Modified: {file_time.strftime('%Y-%m-%d %H:%M')}")
     print(f"   Size: {file_size:.1f} KB")
 
-    # Step 2: Copy to repo
+    # Step 2: Copy to repo (convert TSV to CSV if needed)
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    shutil.copy2(csv_path, DATA_FILE)
-    print(f"\n✅ Copied to: {DATA_FILE}")
+    if csv_path.endswith('.tsv'):
+        import pandas as pd
+        df = pd.read_csv(csv_path, sep='\t', low_memory=False)
+        df.to_csv(DATA_FILE, index=False)
+        print(f"\n✅ Converted TSV → CSV and saved to: {DATA_FILE}")
+    else:
+        shutil.copy2(csv_path, DATA_FILE)
+        print(f"\n✅ Copied to: {DATA_FILE}")
 
     # Step 3: Update timestamp
     update_timestamp()
