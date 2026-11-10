@@ -14,6 +14,8 @@ inbound/outbound loads without requiring Amazon credentials.
 | RIVA | - | - |
 | RTPX | - | - |
 | RRPR | - | - |
+| RCUB | - | - |
+| RGBG | - | - |
 | RPNV | - | RPNC (shared view) |
 | RPNC | - | RPNV (shared view) |
 | RNRM | - | LNRM (shared view) |

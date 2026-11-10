@@ -636,7 +636,8 @@ WHERE (account_id = 'TransfersOutsideServices'
         lane LIKE '%RARC%' OR lane LIKE '%RGLD%' OR lane LIKE '%RIMG%'
         OR lane LIKE '%RITO%' OR lane LIKE '%RIVA%' OR lane LIKE '%RNRM%'
         OR lane LIKE '%LNRM%' OR lane LIKE '%RPNC%' OR lane LIKE '%RPNV%'
-        OR lane LIKE '%RTPX%' OR lane LIKE '%RRPR%')))
+        OR lane LIKE '%RTPX%' OR lane LIKE '%RRPR%' OR lane LIKE '%RCUB%'
+        OR lane LIKE '%RGBG%')))
   AND dest_country IN ('US', 'CA')
   AND origin_scheduled_depart BETWEEN DATEADD(day, -14, GETDATE()) AND DATEADD(day, 14, GETDATE())
 ORDER BY origin_scheduled_depart DESC
