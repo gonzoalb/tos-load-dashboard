@@ -65,6 +65,8 @@ rrpr_user:
   role: site
   sites: ["RRPR"]
   name: "RRPR Operations"
+
+rcub_user:
   password: "RCUB_View_2026"
   role: site
   sites: ["RCUB"]
